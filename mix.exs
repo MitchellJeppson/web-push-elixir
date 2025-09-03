@@ -28,13 +28,14 @@ defmodule WebPushElixir.MixProject do
   # Run "mix help deps" to learn about dependencies.
   defp deps do
     [
+      {:confex, "~> 3.5.1"},
       {:ex_doc, "~> 0.27", only: :dev, runtime: false},
       {:excoveralls, "~> 0.10", only: :test},
-      {:jose, "~> 1.11"},
       {:jason, "~> 1.4"},
+      {:jose, "~> 1.11"},
       {:plug, "~> 1.14"},
       {:plug_cowboy, "~> 2.0"},
-      {:httpoison, "~> 2.0"}
+      {:req, "~> 0.5.0"}
     ]
   end
 end

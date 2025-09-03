@@ -80,7 +80,7 @@ defmodule WebPushElixir do
       JOSE.JWT.from_map(%{
         aud: URI.parse(endpoint).scheme <> "://" <> URI.parse(endpoint).host,
         exp: DateTime.to_unix(DateTime.utc_now()) + 12 * 3600,
-        sub: Application.get_env(:web_push_elixir, :vapid_subject)
+        sub: Confex.get_env(:web_push_elixir, :vapid_subject)
       })
 
     json_web_key =
@@ -108,8 +108,8 @@ defmodule WebPushElixir do
   Returns the result of `HTTPoison.post`
   """
   def send_notification(subscription, message) do
-    vapid_public_key = url_decode(Application.get_env(:web_push_elixir, :vapid_public_key))
-    vapid_private_key = url_decode(Application.get_env(:web_push_elixir, :vapid_private_key))
+    vapid_public_key = url_decode(Confex.get_env(:web_push_elixir, :vapid_public_key))
+    vapid_private_key = url_decode(Confex.get_env(:web_push_elixir, :vapid_private_key))
 
     %{"endpoint" => endpoint, "keys" => %{"p256dh" => p256dh, "auth" => auth}} =
       Jason.decode!(subscription)
@@ -119,15 +119,17 @@ defmodule WebPushElixir do
     signed_json_web_token =
       sign_json_web_token(endpoint, vapid_public_key, vapid_private_key)
 
-    HTTPoison.post(endpoint, encrypted_payload.ciphertext, %{
-      "Authorization" => "WebPush #{signed_json_web_token}",
-      "Content-Encoding" => "aesgcm",
-      "Content-Length" => "#{byte_size(encrypted_payload.ciphertext)}",
-      "Content-Type" => "application/octet-stream",
-      "Crypto-Key" =>
-        "dh=#{url_encode(encrypted_payload.local_public_key)};p256ecdsa=#{url_encode(vapid_public_key)}",
-      "Encryption" => "salt=#{url_encode(encrypted_payload.salt)}",
-      "TTL" => "60"
-    })
+    Req.new(url: endpoint)
+    |> Req.Request.put_header("authorization", "WebPush #{signed_json_web_token}")
+    |> Req.Request.put_header("content-encoding", "aesgcm")
+    |> Req.Request.put_header("content-length", "#{byte_size(encrypted_payload.ciphertext)}")
+    |> Req.Request.put_header("content-type", "application/octet-stream")
+    |> Req.Request.put_header(
+      "crypto-key",
+      "dh=#{url_encode(encrypted_payload.local_public_key)};p256ecdsa=#{url_encode(vapid_public_key)}"
+    )
+    |> Req.Request.put_header("encryption", "salt=#{url_encode(encrypted_payload.salt)}")
+    |> Req.Request.put_header("ttl", "60")
+    |> Req.post(body: encrypted_payload.ciphertext)
   end
 end
